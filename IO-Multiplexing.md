@@ -48,3 +48,4 @@ I/O多路复用这个概念被提出来以后， select是第一个实现 (1983 
 
 - [IO 多路复用是什么意思？](https://www.zhihu.com/question/32163005)
 - [IO多路复用之select总结](https://www.cnblogs.com/Anker/archive/2013/08/14/3258674.html)
+- [IO多路复用和线程池哪个效率更高，更有优势？](https://www.zhihu.com/question/306267779)
