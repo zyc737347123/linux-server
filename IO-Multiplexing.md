@@ -16,7 +16,7 @@
 
 **select, poll, epoll 都是I/O多路复用的具体的实现，之所以有这三个鬼存在，其实是他们出现是有先后顺序的。** 
 
-### 3.1 select
+### 3.1 select(1983)
 
 I/O多路复用这个概念被提出来以后， select是第一个实现 (1983 左右在BSD里面实现的)。select 被实现以后，很快就暴露出了很多问题。 
 - select 会修改传入的参数数组，这个对于一个需要调用很多次的函数，是非常不友好的。
@@ -26,7 +26,7 @@ I/O多路复用这个概念被提出来以后， select是第一个实现 (1983 
 
 “If a file descriptor being monitored by select() is closed in another thread, the result is unspecified”
 
-### 3.2 poll
+### 3.2 poll(1997)
 
 于是14年以后(1997年）一帮人又实现了poll, poll 修复了select的很多问题，比如 
 
@@ -37,7 +37,7 @@ I/O多路复用这个概念被提出来以后， select是第一个实现 (1983 
 
 但是poll仍然不是线程安全的， 这就意味着，不管服务器有多强悍，你也只能在一个线程里面处理一组I/O流。你当然可以那多进程来配合了，不过这样你就有了多进程的各种问题。
 
-### 3.3 epoll
+### 3.3 epoll(2002)
 
 于是5年以后, 在2002, 大神 Davide Libenzi 实现了epoll。epoll 可以说是I/O 多路复用最新的一个实现，epoll 修复了poll 和select绝大部分问题, 比如： 
 
