@@ -10,6 +10,68 @@
 
 ## 1.0 select
 
+### 1.1 实现原理
+
+![](https://images0.cnblogs.com/blog/305504/201308/17201205-8ac47f1f1fcd4773bd4edd947c0bb1f4.png)
+
+1. 使用copy_from_user从用户空间拷贝fd_set到内核空间
+
+2. 注册回调函数__pollwait
+
+3. 遍历所有fd，调用其对应的poll方法（对于socket，这个poll方法是sock_poll，sock_poll根据情况会调用到tcp_poll,udp_poll或者datagram_poll）
+
+4. 以tcp_poll为例，其核心实现就是__pollwait，也就是上面注册的回调函数
+
+5. __pollwait的主要工作就是把current（当前进程）挂到设备的等待队列中，不同的设备有不同的等待队列，对于tcp_poll来说，其等待队列是sk->sk_sleep（注意把进程挂到等待队列中并不代表进程已经睡眠了）。在设备收到一条消息（网络设备）或填写完文件数据（磁盘设备）后，会唤醒设备等待队列上睡眠的进程，这时current便被唤醒了
+
+6. poll方法返回时会返回一个描述读写操作是否就绪的mask掩码，根据这个mask掩码给fd_set赋值
+
+7. 如果遍历完所有的fd，还没有返回一个可读写的mask掩码，则会调用schedule_timeout令调用select的进程（也就是current）进入睡眠。当设备驱动发生自身资源可读写后，会唤醒其等待队列上睡眠的进程。如果超过一定的超时时间（schedule_timeout指定），还是没人唤醒，则调用select的进程会重新被唤醒获得CPU，进而重新遍历fd，判断有没有就绪的fd
+
+8. 把fd_set从内核空间拷贝到用户空间
+
+**简约版：**
+
+1. 先把全部fd扫一遍
+
+2. 如果发现**有满足条件(可写，可读，异常)的fd || 事件(发生超时，有signal打断)**，跳到5
+
+3. 如果没有，当前进程休眠指定超时时间
+
+4. 超时时间到达 || 有发生状态改变的fd，唤醒了进程，跳到1
+
+5. 结束循环，select函数调用返回
+
+### 1.2 实例理解select模型
+
+理解select模型的关键在于理解fd_set，为说明方便，取fd_set长度为1字节，fd_set中的每一bit可以对应一个文件描述符fd。则1字节长的fd_set最大可以对应8个fd
+
+1. 定义变量`fd_set set;` ` FD_ZERO(&set);` 则`set`用位表示是`0000,0000`
+2. 若fd＝5,执行`FD_SET(fd,&set);`后`set`变为`0001,0000`(第5位置为1)
+3. 若再加入fd＝2，fd=1,则`set`变为`0001,0011`
+4. 执行`select(6,&set,0,0,0)`阻塞等待
+5. 若fd=1,fd=2上都发生可读事件，则`select`返回，此时`set`变为`0000,0011`。**注意：没有事件发生的fd=5被清空**
+
+总结可得
+
+- **可监控的文件描述符个数取决与sizeof(fd_set)的值。我这边服务器上sizeof(fd_set)＝512，每bit表示一个文件描述符，则我服务器上支持的最大文件描述符是512\*8=4096。据说可调，另有说虽然可调，但调整上限受于编译内核时的变量值**
+- **将fd加入select监控的`fd_set`的同时，还要再使用一个数据结构array保存放到select监控集中的fd，一是用于elect返回后，`array`作为源数据和`fd_set`进行`FD_ISSET`判断。二是`select`返回后会把以前加入的但并无事件发生的fd清空，则每次开始`select`前都要重新从array取得fd逐一加入，扫描array的同时取得fd最大值maxfd，用于`select`的第一个参数**
+
+### 1.3 poll实现原理
+
+poll的实现和select非常相似，只是描述fd集合的方式不同，poll使用pollfd结构而不是select的fd_set结构，其他的都差不多
+
+### 1.4 缺点
+
+- **每次调用select，都需要把fd集合从用户态拷贝到内核态，这个开销在fd很多时会很大**
+- **同时每次调用select都需要在内核遍历传递进来的所有fd，这个开销在fd很多时也很大**
+- **无论是用户空间还是内核空间随着每次`select`调用都需要维护一个用来存放大量fd的数据结构，这样会使得用户空间和内核空间在传递该结构时复制开销大**
+- **select会修改传入的fd_set参数**
+- **select返回后需要调用者遍历fd_set，使用`FD_ISSET`找出可读写的fd，线性效率，fd_set越大速度越慢**
+- **单个进程可监视的fd数量被限制，即能监听端口的大小有限。一般来说这个数目和系统内存关系很大，具体数目可以cat/proc/sys/fs/file-max察看。32位机默认是1024个。64位机默认是2048**
+- **对socket进行扫描时是线性扫描，即采用轮询的方法，效率较低：当套接字比较多的时候，每次select()都要通过遍历`FD_SET SIZE`个Socket来完成调度,不管哪个Socket是活跃的,都遍历一遍。这会浪费很多CPU时间。如果能给套接字注册某个回调函数，当他们活跃时，自动完成相关操作，那就避免了轮询，这正是epoll与kqueue做的。**
+- **`select`每次调用都要把fd集合从用户态往内核态拷贝一次，并且要把current(当前进程)往设备等待队列中挂一次**
+
 ## 2.0 epoll
 
 ## 3.0 IO多路复用历史
@@ -49,3 +111,4 @@ I/O多路复用这个概念被提出来以后， select是第一个实现 (1983 
 - [IO 多路复用是什么意思？](https://www.zhihu.com/question/32163005)
 - [IO多路复用之select总结](https://www.cnblogs.com/Anker/archive/2013/08/14/3258674.html)
 - [IO多路复用和线程池哪个效率更高，更有优势？](https://www.zhihu.com/question/306267779)
+- [select、poll、epoll之间的区别总结](https://www.cnblogs.com/Anker/p/3265058.html)
