@@ -112,3 +112,6 @@ I/O多路复用这个概念被提出来以后， select是第一个实现 (1983 
 - [IO多路复用之select总结](https://www.cnblogs.com/Anker/archive/2013/08/14/3258674.html)
 - [IO多路复用和线程池哪个效率更高，更有优势？](https://www.zhihu.com/question/306267779)
 - [select、poll、epoll之间的区别总结](https://www.cnblogs.com/Anker/p/3265058.html)
+- [select模型的原理、优点、缺点](https://www.cnblogs.com/-zyj/p/5719923.html)
+- [Linux编程之select](https://www.cnblogs.com/skyfsm/p/7079458.html)
+- [select()/poll() 的内核实现](http://janfan.cn/chinese/2015/01/05/select-poll-impl-inside-the-kernel.html)
