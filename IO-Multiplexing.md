@@ -74,6 +74,12 @@ poll的实现和select非常相似，只是描述fd集合的方式不同，poll�
 
 ## 2.0 epoll
 
+
+
+TODO
+
+
+
 ## 3.0 IO多路复用历史
 
 **select, poll, epoll 都是I/O多路复用的具体的实现，之所以有这三个鬼存在，其实是他们出现是有先后顺序的。** 
@@ -115,3 +121,4 @@ I/O多路复用这个概念被提出来以后， select是第一个实现 (1983 
 - [select模型的原理、优点、缺点](https://www.cnblogs.com/-zyj/p/5719923.html)
 - [Linux编程之select](https://www.cnblogs.com/skyfsm/p/7079458.html)
 - [select()/poll() 的内核实现](http://janfan.cn/chinese/2015/01/05/select-poll-impl-inside-the-kernel.html)
+- [select和epoll 原理概述&优缺点比较](https://blog.csdn.net/jiange_zh/article/details/50811553)
