@@ -26,7 +26,7 @@
 
 6. poll方法返回时会返回一个描述读写操作是否就绪的mask掩码，根据这个mask掩码给fd_set赋值
 
-7. 如果遍历完所有的fd，还没有返回一个可读写的mask掩码，则会调用schedule_timeout令调用select的进程（也就是current）进入睡眠。当设备驱动发生自身资源可读写后，会唤醒其等待队列上睡眠的进程。如果超过一定的超时时间（schedule_timeout指定），还是没设备唤醒current进程，则调用select的进程会重新被唤醒获得CPU，进而重新遍历fd，判断有没有就绪的fd
+7. 如果遍历完所有的fd，还没有返回一个可读写的mask掩码，则会调用schedule_timeout令调用select的进程（也就是current）进入睡眠。当设备驱动发生自身资源可读写后，会唤醒其等待队列上睡眠的进程。如果超过一定的超时时间（schedule_timeout指定），还是没设备唤醒current进程，则调用select的进程会重新被唤醒获得CPU，进而重新遍历fd，判断有没有就绪的fd，此时无论有无就绪fd，select都回返回
 
 8. 把fd_set从内核空间拷贝到用户空间
 
