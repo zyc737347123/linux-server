@@ -26,7 +26,7 @@
 
 6. poll方法返回时会返回一个描述读写操作是否就绪的mask掩码，根据这个mask掩码给fd_set赋值
 
-7. 如果遍历完所有的fd，还没有返回一个可读写的mask掩码，则会调用schedule_timeout令调用select的进程（也就是current）进入睡眠。当设备驱动发生自身资源可读写后，会唤醒其等待队列上睡眠的进程。如果超过一定的超时时间（schedule_timeout指定），还是没设备唤醒current进程，则调用select的进程会重新被唤醒获得CPU，进而重新遍历fd，判断有没有就绪的fd，此时无论有无就绪fd，select都回返回
+7. 如果遍历完所有的fd，还没有返回一个可读写的mask掩码，则会调用schedule_timeout令调用select的进程（也就是current）进入睡眠。当设备驱动发生自身资源可读写后，会唤醒其等待队列上睡眠的进程。如果超过一定的超时时间（schedule_timeout指定），还是没设备唤醒current进程，则调用select的进程会重新被唤醒获得CPU，进而重新遍历fd，判断有没有就绪的fd，**此时无论有无就绪fd，select都回返回**
 
 8. 把fd_set从内核空间拷贝到用户空间
 
@@ -41,6 +41,7 @@
 4. 超时时间到达 || 有发生状态改变的fd，唤醒了进程，跳到1
 
 5. 结束循环，select函数调用返回
+
 
 ### 1.2 实例理解select模型
 
@@ -78,11 +79,11 @@ poll的实现和select非常相似，只是描述fd集合的方式不同，poll�
 
 要理解epoll的实现原理，有三个关键要素：**mmap，红黑树，链表**
 
-为了解决select频繁在内核和用户空间之间拷贝数据(**fd_set**)的缺点，epoll通过**mmap**令用户进程和内核共用同一个块内存，使得这块内存对用户进程和内核都可见，epoll将数据(**struct epoll_event, fd**)都存储在这块内存，减少用户态和内核态之间数据交换，内核可以直接看到epoll监听的事件和句柄，数据只复制一次（调用`EPOLL_CTL_ADD`时）
+为了解决select频繁在内核和用户空间之间拷贝数据(**fd_set**)的缺点，epoll通过**mmap**令用户进程和内核共用同一块内存，使得这块内存对用户进程和内核都可见，epoll将数据(**struct epoll_event, fd**)都存储在这块内存，减少用户态和内核态之间数据交换，内核可以直接看到epoll监听的事件和句柄，数据只复制一次（调用`EPOLL_CTL_ADD`时）
 
 **mmap**出来的内存如何存储epoll的数据(**struct epoll_event, fd**)，必然需要一套数据结构。epoll在实现上使用**红黑树**去存储所有监听的句柄（从实现上来说，**红黑树**的每个节点是`struct epitem.rbn`），当添加、修改、删除epoll上的监听句柄时(`epoll_ctl`)，都是在红黑树上处理，红黑树插入、查找、删除性能都比较好，时间复杂度`O(logn)`
 
-通过`epoll_ctl`函数添加进来的事件都会被放在红黑树的某个节点内，所以，重复添加是没有用的。当把事件添加进来的时候时候会完成关键的一步，那就是该事件都会与相应的设备（网卡）驱动程序建立回调关系，当相应的事件发生后，就会调用这个回调函数，该回调函数在内核中被称为：`ep_poll_callback`**这个回调函数其实就所把这个事件添加到`rdllist`这个双向链表中**。一旦有监听事件发生，epoll就会将该事件添加到双向链表`rdllist`中。那么当我们调用`epoll_wait`时，`epoll_wait`只需要检查rdlist双向链表中是否有存在注册的事件，效率非常可观。这里也只需要将发生的事件复制到用户态中即可，数据量比较小。
+通过`epoll_ctl`函数添加进来的事件都会被放在红黑树的某个节点内，所以，重复添加是没有用的。当把事件添加进来的时候时候会完成关键的一步，那就是该事件都与相应的设备（网卡）驱动程序建立回调关系，当监听的事件发生后，就会调用这个回调函数，该回调函数在内核中被称为：`ep_poll_callback`**这个回调函数其实就是把这个事件添加到`rdllist`这个双向链表中**。一旦有监听事件发生，epoll就会将该事件添加到双向链表`rdllist`中。那么当我们调用`epoll_wait`时，`epoll_wait`只需要检查rdlist双向链表中是否有存在注册的事件，效率非常可观。这里也只需要将发生的事件复制到用户态中即可，数据量比较小。
 
 ```C
 struct eventpoll
@@ -126,7 +127,51 @@ struct epoll_event {
 
 ### 2.2 实现原理（二）
 
-TODO
+![](https://img-blog.csdn.net/20180629080449174?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2RvZzI1MA==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70)
+
+**epoll的工作过程：**
+
+1. `epoll_create`: 创建 epollevent 结构体并初始化相关数据结构。创建 fd 并绑定到 epoll 对象上
+2. `epoll_ctl`: **从用户空间拷贝** event 到内核空间，创建`epitem`并初始化，将要监听的 fd 绑定到 epitem
+3. 通过监听 fd 的 poll 回调，设置等待队列的 entry 调用函数为`ep_poll_callback`，并将 entry 插入到监听 fd 的 “睡眠队列” 上
+4. `epoll_ctl`的最后将 epitem 插入到第一步创建的 epollevent 的红黑树中
+5. `epoll_wait`: 如果 ep 的就绪链表为空，根据当前进程初始化一个等待 entry 并插入到 ep 的等待队列中。设置当前进程为`TASK_INTERRUPTIBLE`即可被中断唤醒，然后进入” 睡眠” 状态，让出 CPU
+6. 当监听的 fd 有对应事件发生，则唤醒相关文件句柄睡眠队列的 entry，并调用其回调，即`ep_poll_callback`
+7. 将发生事件的 epitem 加入到 ep 的 “就绪链表” 中，唤醒阻塞在 epoll_wait 系统调用的 task 去处理。
+8. `epoll_wait`被调度继续执行，判断就绪链表中有就绪的 item，会调用`ep_send_events`向用户态上报事件，即那些 epoll_wait 返回后能获取的事件
+9. `ep_send_events`会调用传入的`ep_send_events_proc`函数，真正执行将就绪事件从内核空间拷贝到用户空间的操作
+10. 拷贝后会判断对应事件是`ET`还是`LT`模式，如果是 LT 则无论如何都会将 epi 重新加回到 “就绪链表”，等待下次`epoll_wait`重新再调用监听 fd 的 poll 以确认是否仍然有未处理的事件
+11. `ep_send_events_proc`返回后，在`ep_send_events`中会判断，如果 “就绪链表” 上仍有未处理的 epi，且有进程阻塞在 epoll 句柄的睡眠队列，则唤醒它！(**这就是 LT 惊群的根源**)
+
+**简约版：**
+
+1. 创建epoll句柄，初始化相关数据结构
+2. 为epoll句柄添加文件句柄，注册睡眠entry的回调
+3. 事件发生，唤醒相关文件句柄睡眠队列的entry，调用其回调
+4. 唤醒epoll睡眠队列的task，搜集并上报数据
+
+### 2.3 实现原理（三）
+
+![](http://blog.chinaunix.net/attachment/201405/26/28541347_140111501437dD.jpg)
+
+**这里主要讲ET和LT模式的实现区别：**
+
+红线（ET模式）：fd状态改变才会触发：
+
+- 当buffer由不可读状态变为可读的时候，即由空变为不空的时候
+
+- 当有新数据到达时，即buffer中的待读内容变多的时候
+
+- 当buffer由不可写变为可写的时候，即由满状态变为不满状态的时候
+
+- 当有旧数据被发送走时，即buffer中待写的内容变少得时候
+
+蓝线（LT模式）：fd的evnets中有相应的事件被置位
+
+- buffer中有数据可读的时候，即buffer不空的时候fd的events的可读为就置1
+- buffer中有空间可写的时候，即buffer不满的时候fd的events的可写位就置1
+
+**红线是事件驱动被动触发，蓝线是函数查询主动触发**
 
 ## 3.0 IO多路复用历史
 
@@ -171,3 +216,6 @@ I/O多路复用这个概念被提出来以后， select是第一个实现 (1983 
 - [select和epoll 原理概述&优缺点比较](https://blog.csdn.net/jiange_zh/article/details/50811553)
 - [Linux下的I/O复用与epoll详解](https://www.cnblogs.com/lojunren/p/3856290.html)
 - [Liunx epoll 详解](http://blog.lucode.net/linux/epoll-tutorial.html)
+- [再谈Linux epoll惊群问题的原因和解决方案](https://blog.csdn.net/dog250/article/details/80837278)
+- [彻底学会使用epoll(一)——ET模式实现分析](http://blog.chinaunix.net/uid-28541347-id-4273856.html)
+- [epoll 深入学习](https://blog.leosocy.top/epoll%E6%B7%B1%E5%85%A5%E5%AD%A6%E4%B9%A0/)
