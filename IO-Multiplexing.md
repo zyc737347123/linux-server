@@ -56,7 +56,7 @@
 总结可得
 
 - **可监控的文件描述符个数取决与sizeof(fd_set)的值。我这边服务器上sizeof(fd_set)＝512，每bit表示一个文件描述符，则我服务器上支持的最大文件描述符是512\*8=4096。据说可调，另有说虽然可调，但调整上限受于编译内核时的变量值**
-- **将fd加入select监控的`fd_set`的同时，还要再使用一个数据结构array保存放到select监控集中的fd，一是用于elect返回后，`array`作为源数据和`fd_set`进行`FD_ISSET`判断。二是`select`返回后会把以前加入的但并无事件发生的fd清空，则每次开始`select`前都要重新从array取得fd逐一加入，扫描array的同时取得fd最大值maxfd，用于`select`的第一个参数**
+- **将fd加入select监控的`fd_set`的同时，还要再使用一个数据结构array保存放到select监控集合中的fd，一是用于select返回后，`array`作为源数据和`fd_set`进行`FD_ISSET`判断。二是`select`返回后会把以前加入的但并无事件发生的fd清空，则每次开始`select`前都要重新从array取得fd逐一加入，扫描array的同时取得fd最大值maxfd，用于`select`的第一个参数**
 
 ### 1.3 poll实现原理
 
@@ -83,7 +83,7 @@ poll的实现和select非常相似，只是描述fd集合的方式不同，poll�
 
 **mmap**出来的内存如何存储epoll的数据(**struct epoll_event, fd**)，必然需要一套数据结构。epoll在实现上使用**红黑树**去存储所有监听的句柄（从实现上来说，**红黑树**的每个节点是`struct epitem.rbn`），当添加、修改、删除epoll上的监听句柄时(`epoll_ctl`)，都是在红黑树上处理，红黑树插入、查找、删除性能都比较好，时间复杂度`O(logn)`
 
-通过`epoll_ctl`函数添加进来的事件都会被放在红黑树的某个节点内，所以，重复添加是没有用的。当把事件添加进来的时候时候会完成关键的一步，那就是该事件都与相应的设备（网卡）驱动程序建立回调关系，当监听的事件发生后，就会调用这个回调函数，该回调函数在内核中被称为：`ep_poll_callback`**这个回调函数其实就是把这个事件添加到`rdllist`这个双向链表中**。一旦有监听事件发生，epoll就会将该事件添加到双向链表`rdllist`中。那么当我们调用`epoll_wait`时，`epoll_wait`只需要检查rdlist双向链表中是否有存在注册的事件，效率非常可观。这里也只需要将发生的事件复制到用户态中即可，数据量比较小。
+通过`epoll_ctl`函数添加进来的事件都会被放在红黑树的某个节点内，所以，重复添加是没有用的。当把事件添加进来的时候时候会完成关键的一步，那就是该监听事件与相应的设备（网卡）驱动程序建立回调关系，当监听的事件发生后，设备驱动就会调用这个回调函数，该回调函数在内核中被称为：`ep_poll_callback`**这个回调函数其实就是把这个事件添加到`rdllist`这个双向链表中**。一旦有监听事件发生，epoll就会将该事件添加到双向链表`rdllist`中。那么当我们调用`epoll_wait`时，`epoll_wait`只需要检查rdlist双向链表中是否为空，若不为则链表的元素即为发生的监听事件，效率非常可观。这里也只需要将发生的事件复制到用户态中即可，数据量比较小。
 
 ```C
 struct eventpoll
@@ -133,9 +133,9 @@ struct epoll_event {
 
 1. `epoll_create`: 创建 epollevent 结构体并初始化相关数据结构。创建 fd 并绑定到 epoll 对象上
 2. `epoll_ctl`: **从用户空间拷贝** event 到内核空间，创建`epitem`并初始化，将要监听的 fd 绑定到 epitem
-3. 通过监听 fd 的 poll 回调，设置等待队列的 entry 调用函数为`ep_poll_callback`，并将 entry 插入到监听 fd 的 “睡眠队列” 上
+3. 通过调用监听 fd 的 poll 回调函数，设置等待队列的 entry 调用函数为`ep_poll_callback`，并将 entry 插入到监听 fd 的 “睡眠队列” 上
 4. `epoll_ctl`的最后将 epitem 插入到第一步创建的 epollevent 的红黑树中
-5. `epoll_wait`: 如果 ep 的就绪链表为空，**根据当前进程初始化一个等待 entry 并插入到 ep 的等待队列中**。设置当前进程为`TASK_INTERRUPTIBLE`即可被中断唤醒，然后进入” 睡眠” 状态，让出 CPU
+5. `epoll_wait`: 如果 ep 的就绪链表为空，**根据当前进程初始化一个等待 entry 并插入到 ep fd的等待队列中**。设置当前进程为`TASK_INTERRUPTIBLE`即可被中断唤醒，然后进入” 睡眠” 状态，让出 CPU
 6. 当监听的 fd 有对应事件发生，则唤醒相关文件句柄睡眠队列的 entry，并调用其回调，即`ep_poll_callback`
 7. 将发生事件的 epitem 加入到 ep 的 “就绪链表” 中，唤醒阻塞在 epoll_wait 系统调用的 task 去处理。
 8. `epoll_wait`被调度继续执行，判断就绪链表中有就绪的 item，会调用`ep_send_events`向用户态上报事件，即那些 epoll_wait 返回后能获取的事件
@@ -171,7 +171,7 @@ struct epoll_event {
 - buffer中有数据可读的时候，即buffer不空的时候fd的events的可读为就置1
 - buffer中有空间可写的时候，即buffer不满的时候fd的events的可写位就置1
 
-**红线是事件驱动被动触发，蓝线是函数查询主动触发**
+**红线是 事件驱动 被动触发，蓝线是 函数查询 主动触发**
 
 ### 2.4 select 和 epoll
 
