@@ -178,8 +178,21 @@ struct epoll_event {
 epoll是对select改进，一些select上的问题都在epoll得到解决：
 
 1. select实现需要调用者不断轮询所有fd集合，直到设备就绪，期间可能要睡眠和唤醒多次交替。而epoll其实也需要调用epoll_wait不断轮询就绪链表，期间也可能多次睡眠和唤醒交替，但是它是设备就绪时，调用回调函数，把就绪fd放入就绪链表中，并唤醒在epoll_wait中进入睡眠的进程。虽然都要睡眠和唤醒交替，但是select在“醒着”的时候要遍历整个fd集合，而epoll在“醒着”的时候只要判断一下就绪链表是否为空就行了，这节省了大量的CPU时间。这就是回调机制带来的性能提升
+
 2. select每次调用都要把fd集合从用户态往内核态拷贝一次，并且要把current进程往设备等待队列中挂一次，而epoll只要一次拷贝，而且把current进程往等待队列上挂也只挂一次（在epoll_wait的开始，注意这里的等待队列并不是设备等待队列，只是一个epoll内部定义的等待队列），这也能节省不少的开销
-3. **epoll最主要解决的问题是：在高并发，且任一事件只有少数socket是活跃的情况下select的性能缺陷问题。如果在并发量低，socket都比较活跃的情况下，select就不见得比epoll慢了**
+
+3. **epoll最主要解决的问题是：在高并发，且任一事件只有少数socket是活跃的情况下select的性能缺陷问题。如果在并发量低，socket都比较活跃的情况下，select就不见得比epoll慢了(因为epoll实现中有大量回调的操作)**
+
+### 2.5 select、poll、epoll区别
+
+1. **支持一个进程所能打开的最大连接数**
+![](https://static.oschina.net/uploads/img/201604/21145832_RVDK.png)
+
+2. **监听句柄剧增后带来的IO效率问题**
+![](https://static.oschina.net/uploads/img/201604/21145942_TmnB.png)
+
+3. **监听事件元数据的传递方式**
+![](https://static.oschina.net/uploads/img/201604/21150044_PgJT.png)
 
 ## 3.0 IO多路复用历史
 
@@ -227,3 +240,4 @@ I/O多路复用这个概念被提出来以后， select是第一个实现 (1983 
 - [再谈Linux epoll惊群问题的原因和解决方案](https://blog.csdn.net/dog250/article/details/80837278)
 - [彻底学会使用epoll(一)——ET模式实现分析](http://blog.chinaunix.net/uid-28541347-id-4273856.html)
 - [epoll 深入学习](https://blog.leosocy.top/epoll%E6%B7%B1%E5%85%A5%E5%AD%A6%E4%B9%A0/)
+- [聊聊IO多路复用之select、poll、epoll详解](https://www.jianshu.com/p/dfd940e7fca2)
