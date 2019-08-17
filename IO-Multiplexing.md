@@ -22,7 +22,7 @@
 
 4. 以tcp_poll为例，其核心实现就是__pollwait，也就是上面注册的回调函数
 
-5. __pollwait的主要工作就是把current（当前进程）挂到设备的等待队列中，不同的设备有不同的等待队列，对于tcp_poll来说，其等待队列是sk->sk_sleep（注意把进程挂到等待队列中并不代表进程已经睡眠了）。在设备收到一条消息（网络设备）或填写完文件数据（磁盘设备）后，会唤醒设备等待队列上睡眠的进程，这时current便被唤醒了
+5. __pollwait的主要工作就是把**current（当前进程）挂到设备的等待队列中**，不同的设备有不同的等待队列，对于tcp_poll来说，其等待队列是sk->sk_sleep（**注意把进程挂到等待队列中并不代表进程已经睡眠了**）。在设备收到一条消息（网络设备）或填写完文件数据（磁盘设备）后，会唤醒设备等待队列上睡眠的进程，这时current便被唤醒了
 
 6. poll方法返回时会返回一个描述读写操作是否就绪的mask掩码，根据这个mask掩码给fd_set赋值
 
@@ -135,7 +135,7 @@ struct epoll_event {
 2. `epoll_ctl`: **从用户空间拷贝** event 到内核空间，创建`epitem`并初始化，将要监听的 fd 绑定到 epitem
 3. 通过监听 fd 的 poll 回调，设置等待队列的 entry 调用函数为`ep_poll_callback`，并将 entry 插入到监听 fd 的 “睡眠队列” 上
 4. `epoll_ctl`的最后将 epitem 插入到第一步创建的 epollevent 的红黑树中
-5. `epoll_wait`: 如果 ep 的就绪链表为空，根据当前进程初始化一个等待 entry 并插入到 ep 的等待队列中。设置当前进程为`TASK_INTERRUPTIBLE`即可被中断唤醒，然后进入” 睡眠” 状态，让出 CPU
+5. `epoll_wait`: 如果 ep 的就绪链表为空，**根据当前进程初始化一个等待 entry 并插入到 ep 的等待队列中**。设置当前进程为`TASK_INTERRUPTIBLE`即可被中断唤醒，然后进入” 睡眠” 状态，让出 CPU
 6. 当监听的 fd 有对应事件发生，则唤醒相关文件句柄睡眠队列的 entry，并调用其回调，即`ep_poll_callback`
 7. 将发生事件的 epitem 加入到 ep 的 “就绪链表” 中，唤醒阻塞在 epoll_wait 系统调用的 task 去处理。
 8. `epoll_wait`被调度继续执行，判断就绪链表中有就绪的 item，会调用`ep_send_events`向用户态上报事件，即那些 epoll_wait 返回后能获取的事件
@@ -172,6 +172,14 @@ struct epoll_event {
 - buffer中有空间可写的时候，即buffer不满的时候fd的events的可写位就置1
 
 **红线是事件驱动被动触发，蓝线是函数查询主动触发**
+
+### 2.4 select 和 epoll
+
+epoll是对select改进，一些select上的问题都在epoll得到解决：
+
+1. select实现需要调用者不断轮询所有fd集合，直到设备就绪，期间可能要睡眠和唤醒多次交替。而epoll其实也需要调用epoll_wait不断轮询就绪链表，期间也可能多次睡眠和唤醒交替，但是它是设备就绪时，调用回调函数，把就绪fd放入就绪链表中，并唤醒在epoll_wait中进入睡眠的进程。虽然都要睡眠和唤醒交替，但是select在“醒着”的时候要遍历整个fd集合，而epoll在“醒着”的时候只要判断一下就绪链表是否为空就行了，这节省了大量的CPU时间。这就是回调机制带来的性能提升
+2. select每次调用都要把fd集合从用户态往内核态拷贝一次，并且要把current进程往设备等待队列中挂一次，而epoll只要一次拷贝，而且把current进程往等待队列上挂也只挂一次（在epoll_wait的开始，注意这里的等待队列并不是设备等待队列，只是一个epoll内部定义的等待队列），这也能节省不少的开销
+3. **epoll最主要解决的问题是：在高并发，且任一事件只有少数socket是活跃的情况下select的性能缺陷问题。如果在并发量低，socket都比较活跃的情况下，select就不见得比epoll慢了**
 
 ## 3.0 IO多路复用历史
 
