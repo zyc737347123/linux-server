@@ -8,7 +8,9 @@
 
 > Organizations which design systems are constrained to produce designs which are copies of the communication structures of these organizations. - Melvin Conway(1967)
 >
-> 设计系统的组织，其产生的设计等同于组织之内、组织之间的沟通结构
+> 任何设计系统的组织，必然会产生以下设计结果：即其结构就是该组织沟通结构的写照。
+>
+> 即系统设计本质上反映了企业的组织机构
 
 **所谓架构设计，实际上是如何合理的对现实的人力架构进行系统映射，以便最大限度的压榨整个公司（组织）的运行效率（万恶的资本家）**
 
@@ -114,6 +116,7 @@
 
 ## 参考文献
 
+- [Conway's law 康威定律](https://www.cnblogs.com/ghj1976/p/5703462.html)
 - [到底什么是前后端分离?](https://www.zhihu.com/question/304180174)
 - [前后端分离架构概述](https://blog.csdn.net/fuzhongmin05/article/details/81591072)
 - [如何理解Web应用程序的MVC模型?](https://www.zhihu.com/question/27897315)
