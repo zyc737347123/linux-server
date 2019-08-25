@@ -42,9 +42,80 @@
 
 **总结，任何系统架构设计，实际上是对组织结构在系统上进行映射，前后端分离，就是在对前端开发人员和后端开发人员的工作进行解耦，尽量减少他她们之间的交流成本，帮助他她们更能专注于自己擅长的工作**。
 
+## 2.0 从技术实现看前后端分离
+
+### 2.1 完全不分离
+
+早期主要使用MVC框架，JSP + Servlet 的结构图如下：
+
+![](https://ss.csdn.net/p?https://mmbiz.qpic.cn/mmbiz_jpg/UtWdDgynLdaZrcL8lQlic6n0OHVBahakCeDctOD5ysRfstQKJKvvkqGjA83HQojfODSxWENHghzppc3l9tBjyAw/640?wx_fmt=jpeg)
+
+![](https://pic4.zhimg.com/80/v2-d81b101ed82efc1bbfb918f03ff3f452_hd.jpg)
+
+大致就是所有的请求都被发送给作为控制器的Servlet，它接受请求，并根据请求信息将它们分发给适当的JSP来响应。同时，Servlet还根据JSP的需求生成JavaBeans的实例并输出给JSP环境。JSP可以通过直接调用方法或使用UseBean的自定义标签得到JavaBeans中的数据。需要说明的是，这个View还可以采用 Velocity、Freemaker 等模板引擎。使用了这些模板引擎，可以使得开发过程中的人员分工更加明确，还能提高开发效率。
+
+### 2.2 半分离
+
+前后端半分离，前端负责开发页面，通过接口（Ajax）获取数据，采用Dom操作对页面进行数据绑定，最终是由前端把页面渲染出来。这也就是Ajax与SPA应用（单页应用）结合的方式，其结构图如下：
+
+![](https://ss.csdn.net/p?https://mmbiz.qpic.cn/mmbiz_jpg/UtWdDgynLdaZrcL8lQlic6n0OHVBahakCFnq4hJXa86V5mGQoIB3pASSSlWzoSJqIRWqV7wwo98ZWalSEe1wWsg/640?wx_fmt=jpeg)
+
+后端提供的接口是统一的，没有区分native和web端，所以web端的工作流程如下：
+1. 发起页面请求，加载基本资源，如CSS，JS等
+2. 发起一个Ajax请求再到服务端请求数据，同时展示loading
+3. 得到json格式的数据后再根据逻辑选择模板渲染出DOM字符串
+4. 将DOM字符串插入页面中web view渲染出DOM结构
+
+这些步骤都由用户所使用的设备中逐步执行，也就是说用户的设备性能与APP的运行速度联系的更紧换句话说就是如果用户的设备很低端，那么APP打开页面的速度会越慢
+
+为什么说是半分离的？因为不是所有页面都是单页面应用，在多页面应用的情况下，前端因为没有掌握controller层，前端需要跟后端讨论，我们这个页面是要同步输出呢，还是异步json渲染呢？而且，即使在这一时期，通常也是一个工程师搞定前后端所有工作。因此，在这一阶段，只能算半分离
+
+在这种架构下，还是存在明显的弊端的。最明显的有如下几点：
+
+- JS存在大量冗余，在业务复杂的情况下，页面的渲染部分的代码，非常复杂
+- 在Json返回的数据量比较大的情况下，渲染的十分缓慢，会出现页面卡顿的情况
+- SEO（ Search Engine Optimization，即搜索引擎优化）非常不方便，由于搜索引擎的爬虫无法爬下JS异步渲染的数据，导致这样的页面，SEO会存在一定的问题
+- 资源消耗严重，在业务复杂的情况下，一个页面可能要发起多次HTTP请求才能将页面渲染完毕。可能有人不服，觉得PC端建立多次HTTP请求也没啥。那你考虑过移动端么，知道移动端建立一次HTTP请求需要消耗多少资源？
+
+### 2.3 分离
+
+在前后端彻底分离这一时期，前端的范围被扩展，controller层也被认为属于前端的一部分：
+
+- 前端：负责View和Controller层
+- 后端：只负责Model层，业务/数据处理等
+
+可是服务端人员对前端HTML结构不熟悉，前端也不懂后台代码呀，controller层如何实现呢？这就是node.js的妙用了，node.js适合运用在高并发、I/O密集、少量业务逻辑的场景。最重要的一点是，前端不用再学一门其他的语言了，对前端来说，上手度大大提高
+
+用NodeJs来作为桥梁架接服务器端API输出的JSON。后端出于性能和别的原因，提供的接口所返回的数据格式也许不太适合前端直接使用，前端所需的排序功能、筛选功能，以及到了视图层的页面展现，也许都需要对接口所提供的数据进行二次处理。这些处理虽可以放在前端来进行，但也许数据量一大便会浪费浏览器性能。因而现今，增加Node中间层便是一种良好的解决方案
+
+![](https://img-blog.csdn.net/20180811200234841?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Z1emhvbmdtaW4wNQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70)
+
+浏览器(webview)不再直接请求后端的API，而是：
+1. 浏览器请求服务器端的NodeJS
+2. NodeJS再发起HTTP去请求后端的model
+3. model层输出JSON给NodeJS
+4. NodeJS收到JSON后再渲染出HTML页面
+5. NodeJS直接将HTML页面flush到浏览器
+
+这样，浏览器得到的就是普通的HTML页面，而不用再发Ajax去请求服务器了。
+
+![](https://img-blog.csdn.net/20180811205658171?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Z1emhvbmdtaW4wNQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70)
+
+## Q&A
+
+1. 前后端分离是说浏览器和后端服务分离吗？
+
+   不是，前后端分离里的前端不是浏览器，指的是生成 HTML 的那个服务，它可以是一个仅仅生成 HTML 的 Web 服务器，也可以是在浏览器中通过 JS 动态生成 HTML 的 单页应用。实践中，有实力的团队往往在实现前后端分离里时，前端选用 node 服务器，后端选用 C#、Java 等（排名不分先后）
+
+2. 前后端分离是种技术吗？
+
+   不是，前后端分离是种架构模式，或者说是最佳实践。所谓模式就是大家这么用了觉得不错，你可以直接抄来用的固定套路。
+
+
 ## 参考文献
 
 - [到底什么是前后端分离?](https://www.zhihu.com/question/304180174)
+- [前后端分离架构概述](https://blog.csdn.net/fuzhongmin05/article/details/81591072)
 - [如何理解Web应用程序的MVC模型?](https://www.zhihu.com/question/27897315)
 - [SPA和MPA](https://www.jianshu.com/p/a02eb15d2d70)
 - [Swagger - 前后端分离后的契约](https://www.cnblogs.com/whitewolf/p/4686154.html)
