@@ -12,6 +12,8 @@
 |    B     | 位于NAT之后 |   非必须信息   | userb  |    22    |       yes        |
 |    C     | 位于NAT之后 |   非必须信息   | userc  |    22    |        no        |
 
+
+
 ## 1.0 SSH反向隧道
 
 ### 使用背景
@@ -46,9 +48,11 @@
 
 反向隧道的建立依赖于SSH的远程端口转发功能，单纯建立家庭服务器和中继主机的SSH连接是不够的，还需要中继主机将访问机器的数据转发通过已经建立的SSH连接转发到家庭服务器才行。远程端口转发即是在建立本地主机和远程主机SSH连接的同时，设置一个转发规则。指定远程主机利用这个SSH连接将指定的远程端口的数据转发到指定的目标主机的目标端口
 
+
+
 ## 2.0 基础方案
 
-现在有机器A（中继主机），有机器B（家庭服务器）。
+现在有机器A（中继主机），有机器B（家庭服务器，本文默认家庭服务器已经安装`openssh-server`）。
 
 #### 中继主机ssh服务配置
 
@@ -92,6 +96,8 @@
 
 PS：这里的中继主机的`IP`实际是内网地址，是为了保护我的`VPS`请不要在意
 
+
+
 ## 2.1 方案改进一
 
 基础方案虽然实现了任意主机访问家庭服务器的目标，但是基础方案还是存在几个不可忽视的缺点。
@@ -99,9 +105,78 @@ PS：这里的中继主机的`IP`实际是内网地址，是为了保护我的`V
 1. 家庭服务器和中继主机的连接的稳定性没有保障
 2. 家庭服务器和中继主机的连接需要人工建立
 
-首先解决`ssh`稳定新的问题，虽然前面已经设置了中继主机的`sshd`服务，但如果将`ssh`服务端设置成超时非常大也是不合理的，这样资源很容易被空闲连接占用，所以还是需要客户端维持连接。
+#### 连接稳定性
 
-解决`ssh`连接稳定性的一个方案就是`autossh`
+首先解决`ssh`稳定性的问题，虽然前面已经设置了中继主机的`sshd`服务，但如果将`ssh`服务端设置成超时非常大也是不合理的，这样资源很容易被空闲连接占用，所以还是需要客户端维持连接。
+
+解决`ssh`连接稳定性的一个方案就是`autossh`，`autossh`会在超时之后自动重新建立SSH 隧道，这样就解决了隧道的稳定性问题
+
+使用两种命令都可以让`autossh`后台运行
+
+`autossh -qNTR 6700:localhost:22 linkz@117.78.3.62 &`
+
+这种就是在终端后台运行，由于`atuossh`不处理`SIGUHP`信号，所以退出终端不会导致`autossh`进程结束
+
+`autossh -f -qNTR 6700:localhost:22 linkz@117.78.3.62`
+
+`autossh`也提供了类型`&`的参数，`-f`参数会令`autossh`后台运行，而且不会传递给`ssh`，而且`-f`参数开启时，无法输入`ssh`登陆密码
+
+#### 无密码登陆
+
+最基础的实现,，在机器B上执行下面的命令（因为机器B在登陆过程中属于客户端）：
+
+`ssh-keygen -t 'rsa'`
+
+`ssh-copy-id vps@ip`
+
+因为下面我们要将`autossh`建立隧道的工作服务化，所以需要先配置无密码登陆
+
+#### 隧道的自动建立
+
+最后要实现反向隧道的自动建立，我们用`systemd`机制将`autossh`部署成家庭服务器上的一个服务。
+
+可以在`/etc//etc/systemd/system`，创建一个`autossh.service`文件，内容如下:
+
+```sh
+[Unit]
+Description=Auto SSH Tunnel
+After=network-online.target
+[Service]
+User=youruser
+Type=simple
+ExecStart=/bin/autossh -NTR 6700:localhost:22 usera@a.site -i /home/youruser/.ssh/id_rsa
+ExecReload=/bin/kill -9 $MAINPID
+KillMode=process
+Restart=always
+[Install]
+WantedBy=multi-user.target
+WantedBy=graphical.target
+```
+
+上面的`youruser`请设置你自己用户名，`vps`的网址也是设置成你自己的，`-i`参数是指定使用哪个秘钥文件进行登陆用户身份认证
+
+PS：配置文件中的 `autossh `命令需要替换为其绝对地址，以及不支持 `-f `参数
 
 
+
+## 2.2 成熟方案
+
+即使使用了`autossh`和`systemd`，其实还有很多网络情况是我们没有考虑的，如果是正儿八经长期用的话，推荐使用专业程序来提供更加稳定高效的方向代理
+
+[Frp]( https://github.com/fatedier/frp)：frp 是一个可用于内网穿透的高性能的反向代理应用，支持 tcp, udp 协议，为 http 和 https 应用协议提供了额外的能力，且尝试性支持了点对点穿透。
+
+[Sakura Frp](https://link.zhihu.com/?target=https%3A//www.natfrp.org/)：基于 `Frp `二次开发的，免费提供内网穿透服务。普通用户的映射最高速率可达到 8Mbps，且不限流量
+
+
+
+## 参考文献
+
+- [SSH原理与运用（二）：远程操作与端口转发](http://www.ruanyifeng.com/blog/2011/12/ssh_port_forwarding.html)
+- [ssh端口转发](https://www.zsythink.net/archives/2450)
+- [SSH隧道技术----端口转发](https://www.jianshu.com/p/1ddab825956c)
+- [man ssh翻译(ssh命令中文手册)](https://www.cnblogs.com/f-ck-need-u/p/7120669.html)
+- [使用SSH反向隧道进行内网穿透](http://arondight.me/2016/02/17/%E4%BD%BF%E7%94%A8SSH%E5%8F%8D%E5%90%91%E9%9A%A7%E9%81%93%E8%BF%9B%E8%A1%8C%E5%86%85%E7%BD%91%E7%A9%BF%E9%80%8F/)
+- [内网穿透：在公网访问你家的 NAS](https://zhuanlan.zhihu.com/p/57477087)
+- [使用 autossh 建立反向 SSH 隧道管理个人计算机](https://www.centos.bz/2017/12/%E4%BD%BF%E7%94%A8-autossh-%E5%BB%BA%E7%AB%8B%E5%8F%8D%E5%90%91-ssh-%E9%9A%A7%E9%81%93%E7%AE%A1%E7%90%86%E4%B8%AA%E4%BA%BA%E8%AE%A1%E7%AE%97%E6%9C%BA/)
+- [systemctl 针对 service 类型的配置文件](https://wizardforcel.gitbooks.io/vbird-linux-basic-4e/content/150.html)
 
