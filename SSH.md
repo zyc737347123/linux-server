@@ -155,6 +155,18 @@ WantedBy=graphical.target
 
 上面的`youruser`请设置你自己用户名，`vps`的网址也是设置成你自己的，`-i`参数是指定使用哪个秘钥文件进行登陆用户身份认证
 
+#### 隧道服务(autossh.service)的部署
+
+以下命令都是在机器B（家庭服务器）上执行
+
+在B 上让`network-online.target` 生效：
+
+`systemctl enable NetworkManager-wait-online`
+
+然后设置隧道服务开机自启动
+
+`sudo systemctl enable autossh`
+
 PS：配置文件中的 `autossh `命令需要替换为其绝对地址，以及不支持 `-f `参数
 
 
