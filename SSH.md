@@ -135,7 +135,7 @@ PS：这里的中继主机的`IP`实际是内网地址，是为了保护我的`V
 
 最后要实现反向隧道的自动建立，我们用`systemd`机制将`autossh`部署成家庭服务器上的一个服务。
 
-可以在`/etc//etc/systemd/system`，创建一个`autossh.service`文件，内容如下:
+可以在`/etc/systemd/system`目录下，创建一个`autossh.service`文件，内容如下:
 
 ```sh
 [Unit]
