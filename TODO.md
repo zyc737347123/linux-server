@@ -6,7 +6,7 @@
 3. Go -- <The Go Programming Language>
 4. HTTP和HTTPS -- <透视HTTP协议>
 5. Redis -- <Resis设计于实现>
-6. 主流的`debug`工具使用方法
+6. 主流的`debug`工具使用方法（**不同编程语言有不同的工具，先掌握java，go，c++的**），故障排除能力
 7. Linux 服务端 运维基础 - - <趣谈Linux操作系统> 
 8. 设计模式 -- <设计模式之美>
 9. 消息队列 - - <消息队列高手课> 
