@@ -141,7 +141,7 @@ struct epoll_event {
 8. `epoll_wait`被调度继续执行，判断就绪链表中有就绪的 item，会调用`ep_send_events`向用户态上报事件，即那些 epoll_wait 返回后能获取的事件
 9. `ep_send_events`会调用传入的`ep_send_events_proc`函数，真正执行将就绪事件从内核空间拷贝到用户空间的操作
 10. 拷贝后会判断对应事件是`ET`还是`LT`模式，如果是 LT 则无论如何都会将 epi 重新加回到 “就绪链表”，等待下次`epoll_wait`重新再调用监听 fd 的 poll 以确认是否仍然有未处理的事件
-11. `ep_send_events_proc`返回后，在`ep_send_events`中会判断，如果 “就绪链表” 上仍有未处理的 epi，且有进程阻塞在 epoll 句柄的睡眠队列，则唤醒它！(**这就是 LT 惊群的根源**)
+11. `ep_send_events_proc`返回后，在`ep_send_events`中会判断，如果 “就绪链表” 上仍有未处理的 epi，且有进程阻塞在 epoll 句柄的睡眠队列，则唤醒它！(**这就是 LT 惊群的根源：如果有多个线程（进程)监听同一个`epoll_fd`，然后这个`epoll_fd`中有`LT`模式的事件触发，就会发生惊群，所有监听这个`epoll_fd`的线程（进程）都会被唤醒，直到`LT`事件被完全处理，此时下一个被唤醒的进程在`ep_scan_ready_list`中的`ep_item_poll`调用中将得不到任何事件，此时便不会再将该`epi`加回“就绪链表”了，LT水平触发结束**）
 
 **简约版：**
 
