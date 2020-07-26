@@ -39,7 +39,7 @@ INSERT INTO voice_cnt (calling_party_number,called_party_number,cnt_duration,cnt
 ,('6','5',40.00,1)
 ;
 
-INSERT INTO `sql-learn`.id_table (`number`) VALUES 
+INSERT INTO id_table (`number`) VALUES 
 (2)
 ,(4)
 ;
@@ -72,10 +72,10 @@ GROUP BY calling_party_number;
 -- 输出用户子集(id_table)的一度人脉统计值(cnt_one_hop), 二度人脉统计值(cnt_one_hop + cnt_two_hop), 不建议使用，会很慢
 SELECT t0.calling_party_number, t0.cnt_one_hop, t4.cnt_two_hop, (t0.cnt_one_hop + t4.cnt_two_hop) as cnt_hop
 FROM (
-	SELECT calling_party_number, COUNT(*) as cnt_one_hop
-	FROM voice_cnt
-	WHERE calling_party_number IN ( SELECT number FROM id_table )
-	GROUP BY calling_party_number
+		SELECT calling_party_number, COUNT(*) as cnt_one_hop
+		FROM voice_cnt
+		WHERE calling_party_number IN ( SELECT number FROM id_table )
+		GROUP BY calling_party_number
 	) as t0,
 	(
 		SELECT calling_party_number, COUNT(*) as cnt_two_hop
