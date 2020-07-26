@@ -48,10 +48,7 @@ INSERT INTO `sql-learn`.id_table (`number`) VALUES
 -- 计算用户子集(id_table)的one hop cnt
 SELECT calling_party_number, COUNT(*) as cnt_one_hop
 FROM voice_cnt
-WHERE calling_party_number IN (
-	SELECT number
-	FROM id_table
-)
+WHERE calling_party_number IN ( SELECT number FROM id_table )
 GROUP BY calling_party_number;
 
 
@@ -66,12 +63,9 @@ FROM (
 	  		SELECT called_party_number
 	  		FROM voice_cnt
 	  		WHERE calling_party_number = t1.calling_party_number
-	  	)
+	  	) and
+	  	t1.calling_party_number IN (SELECT number FROM id_table)
 ) as t3
-WHERE calling_party_number IN (
-	SELECT number
-	FROM id_table
-)
 GROUP BY calling_party_number;
 
 
@@ -80,11 +74,9 @@ SELECT t0.calling_party_number, t0.cnt_one_hop, t4.cnt_two_hop, (t0.cnt_one_hop 
 FROM (
 	SELECT calling_party_number, COUNT(*) as cnt_one_hop
 	FROM voice_cnt
-	WHERE calling_party_number IN (
-		SELECT number
-		FROM id_table
-	)
-	GROUP BY calling_party_number) as t0,
+	WHERE calling_party_number IN ( SELECT number FROM id_table )
+	GROUP BY calling_party_number
+	) as t0,
 	(
 		SELECT calling_party_number, COUNT(*) as cnt_two_hop
 		FROM (
@@ -96,11 +88,9 @@ FROM (
 	  			SELECT called_party_number
 	  			FROM voice_cnt
 	  			WHERE calling_party_number = t1.calling_party_number
-	  		)
+	  		) and
+	  		t1.calling_party_number IN (SELECT number FROM id_table)
 		) as t3
-		WHERE calling_party_number IN (
-		SELECT number
-		FROM id_table
-		)
-	GROUP BY calling_party_number) as t4
-WHERE t0.calling_party_number = t4.calling_party_number
+		GROUP BY calling_party_number
+	) as t4
+WHERE t0.calling_party_number = t4.calling_party_number;
