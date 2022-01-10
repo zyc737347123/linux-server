@@ -25,10 +25,10 @@ Ref:
 
 A common example of an embarrassingly parallel problem is 3D video rendering handled by a [graphics processing unit](https://en.wikipedia.org/wiki/Graphics_processing_unit), where each frame (forward method) or pixel ([ray tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics)) method) can be handled with no interdependency.[[3\]](https://en.wikipedia.org/wiki/Embarrassingly_parallel#cite_note-ChalmersReinhard2011-3) Some forms of [password cracking](https://en.wikipedia.org/wiki/Password_cracking) are another embarrassingly parallel task that is easily distributed on [central processing units](https://en.wikipedia.org/wiki/Central_processing_unit), [CPU cores](https://en.wikipedia.org/wiki/CPU_core), or clusters.
 
-## 3. Failure semantics 错误语义
+## 3. Failure semantics（错误语义）
 A list of types of errors that can occur:
 
-- An omission error is when one or more responses fails.
+- An omission error is when one or more responses fails. 
 
 - A crash error is when nothing happens. A crash is a special case of omission when all responses fail.
 - A Timing error is when one or more responses arrive outside the time interval specified. Timing errors can be early or late. An omission error is a timing error when a response has infinite timing error.
@@ -40,4 +40,25 @@ A list of types of errors that can occur:
 Should another type of error appear it will lead to a service failure because it cannot be managed.
 
 
+## 4. Fallacies of distributed computing（分布式计算语境中的谬论）
 
+描述：The fallacies of distributed computing are a set of assertions made by L Peter Deutsch and others at Sun Microsystems describing false assumptions that programmers new to distributed applications invariably make.
+
+谬论：
+1. The network is reliable;
+2. Latency is zero;
+3. Bandwidth is infinite;
+4. The network is secure;
+5. Topology doesn't change;
+6. There is one administrator;
+7. Transport cost is zero;
+8. The network is homogeneous; ps：[Heterogeneous network](https://en.wikipedia.org/wiki/Heterogeneous_network)
+
+## 5. Happened-before （事件顺序，因果一致性）
+描述：In computer science, the happened-before relation is a relation between the result of two events, such that if one event should happen before another event, the result must reflect that, even if those events are in reality executed out of order (usually to optimize program flow). This involves ordering events based on the potential causal relationship of pairs of events in a concurrent system, especially asynchronous distributed systems. It was formulated by Leslie Lamport.[1]
+
+---------------------
+
+问题场景：
+
+![02](/Users/yongchang.zhang/Downloads/02.jpg)
