@@ -70,3 +70,25 @@ Ref：
 - https://writings.sh/post/logical-clocks
 - https://yang.observer/2020/07/26/time-lamport-logical-time/
 - https://blog.xiaohansong.com/lamport-logic-clock.html
+
+
+## 6. Leader election
+
+问题场景：狭义拜占庭问题（假设将军中没有叛军，信使的信息可靠但有可能被暗杀的情况下，将军们如何达成一致性决定？）
+
+解决方案：Raft，Bully，ZooKeeper Atomic Broadcast
+
+Ref:
+
+- https://zhuanlan.zhihu.com/p/85680181
+- https://www.cnblogs.com/moonyaoo/p/12952580.html
+- https://catkang.github.io/2017/06/30/raft-subproblem.html
+
+## 7. Quantum Byzantine agreement（量子拜占庭协议）
+
+问题场景：[检测的拜占庭协议](http://www.infocomm-journal.com/cjnis/article/2016/2096-109x/2096-109x-2-11-00030.shtml)
+
+解决方案：每个将军都有不被其他将军所知的数字列表，并且自己拥有的数字列表与其他将军手中的列表之间有合适的关联关系。因此，解决拜占庭问题可以简化为解决生成和安全分发这些列表的问题。利用量子协议就能检测分发的安全性
+
+## 8. 
+
