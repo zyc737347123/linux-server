@@ -90,5 +90,31 @@ Ref:
 
 解决方案：每个将军都有不被其他将军所知的数字列表，并且自己拥有的数字列表与其他将军手中的列表之间有合适的关联关系。因此，解决拜占庭问题可以简化为解决生成和安全分发这些列表的问题。利用量子协议就能检测分发的安全性
 
-## 8. 
+## 8. Race condition
+
+Handling race conditions in distributed systems is tricky. It all depends on how you want your system to behave.
+
+Is it alright to have eventual consistency or strong consistency is a must?
+Do you want your system to be more available or consistent if a resource is unavailable?
+
+Some of the ways to handle race conditions are:
+
+1. Distributed locks: But remember, pessimistic locking down a resource will have a significant impact on the latency of your system.
+2. Sharding: For an instance you have a counter variable which multiple threads are updating every second. Instead of pessimistic locking down that variable.
+Shard it. There will be multiple copies of that variable across various nodes. Individual threads will update the variable & eventually all the updates across nodes will be summed up.
+3. Implementing a high performance queue: Queue all the requests for a resource. Let the requests access the resource in a first in first out fashion.
+
+## 9. Self-stabilization
+
+描述：Self-stabilization is a concept of fault-tolerance in distributed systems. Given any initial state, a self-stabilizing distributed system will end up in a correct state in a finite number of execution steps.
+
+A system is self-stabilizing if and only if:
+
+1. Starting from any state, it is guaranteed that the system will eventually reach a correct state (convergence).
+2. Given that the system is in a correct state, it is guaranteed to stay in a correct state, provided that no fault happens (closure).
+
+A system is said to be randomized self-stabilizing if and only if it is self-stabilizing and the expected number of rounds needed to reach a correct state is bounded by some constant k.
+
+
+## 10. Serializability
 
