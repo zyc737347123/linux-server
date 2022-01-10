@@ -116,5 +116,11 @@ A system is self-stabilizing if and only if:
 A system is said to be randomized self-stabilizing if and only if it is self-stabilizing and the expected number of rounds needed to reach a correct state is bounded by some constant k.
 
 
-## 10. Serializability
+## 10. Distributed serializability
+
+描述：Distributed serializability is the serializability of a schedule of a transactional distributed system (e.g., a distributed database system)；Distributed serializability is a major goal of [distributed concurrency control](https://en.wikipedia.org/wiki/Distributed_concurrency_control) for correctness
+
+问题背景：全局事务，多个本地事务一起成功或一起失败
+
+解决方案：原子协议，Distributed transactions imply a need for an [atomic commit](https://en.wikipedia.org/wiki/Atomic_commit) protocol to reach consensus among its local sub-transactions on whether to commit or abort.
 
