@@ -62,3 +62,11 @@ Should another type of error appear it will lead to a service failure because it
 问题场景：
 
 ![02](/Users/yongchang.zhang/Downloads/02.jpg)
+
+解决方案：逻辑时钟，向量时钟，[混合逻辑时钟](http://yang.observer/2020/12/16/hlc/)
+
+Ref：
+
+- https://writings.sh/post/logical-clocks
+- https://yang.observer/2020/07/26/time-lamport-logical-time/
+- https://blog.xiaohansong.com/lamport-logic-clock.html
